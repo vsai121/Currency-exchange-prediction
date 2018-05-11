@@ -4,8 +4,9 @@ import tensorflow as tf
 from sklearn.preprocessing import StandardScaler
 import csv
 
-INPUT_SIZE = 3
-NUM_STEPS = 2
+INPUT_SIZE = 1
+NUM_STEPS = 30
+TRAIN_TEST_RATIO = 0.1
 
 def read_csv_file(filename):
     name = filename
@@ -51,7 +52,7 @@ def read_prices():
     """reversing data (to predict future prices)"""
     for row in (data[::-1]):
 
-        prices.append(row[1])
+        prices.append(float(row[1]))
 
     return prices
 
@@ -69,6 +70,12 @@ def normalize_prices(prices):
     return prices
 
 
+def normalize_seq(seq):
+
+    #print(seq)
+    seq = [seq[0] / seq[0][0] - 1.0] + [curr / seq[i-1][-1] - 1.0 for i, curr in enumerate(seq[1:])]
+    return seq
+
 def split_data(input):
 
     """
@@ -79,12 +86,11 @@ def split_data(input):
        for i in range(len(input) // INPUT_SIZE)]
 
     #Normalizing seq
+    seq = normalize_seq(seq)
 
-
-    """Split into groups of `num_steps"""
+    """Split into groups of num_steps"""
     X = np.array([seq[i: i + NUM_STEPS] for i in range(len(seq) - NUM_STEPS)])
     y = np.array([seq[i + NUM_STEPS] for i in range(len(seq) - NUM_STEPS)])
-
 
     return X , y
 
@@ -95,35 +101,25 @@ def train_test_split(X , y):
     Splitting data into training and test data"
     """
 
-    X_train = X[0:3000]
-    X_test= X[3000:]
+    train_size = int(len(X) * (1.0 - TRAIN_TEST_RATIO))
+    X_train, X_test = X[:train_size], X[train_size:]
+    y_train, y_test = y[:train_size], y[train_size:]
 
-    y_train = y[0:3000]
-    y_test = y[3000:]
-
-    """
-    Validating shapes
-
-    print("X_train" , X_train.shape)
-    print("Y_train" , y_train.shape)
-    print("X_test" , X_test.shape)
-    print("Y_test" , y_test.shape)
-
-    """
 
     return X_train , y_train , X_test , y_test
 
 
-prices = read_prices()
-prices = normalize_prices(prices)
+def process():
+    prices = read_prices()
+    #print("Prices" , prices)
+    X , y = split_data(prices)
 
-print("Prices" , prices)
+    #print("X" , "Y")
+    #print(X[1])
+    #print(y[1])
 
+    X_train , y_train , X_test , y_test = train_test_split(X,y)
+    #print(X.shape)
+    #print(y.shape)
 
-X , y = split_data(prices)
-
-print("X" , "Y")
-print(X.shape)
-print(y.shape)
-
-X_train , y_train , X_test , y_test = train_test_split(X,y)
+    return X_train , y_train , X_test , y_test
