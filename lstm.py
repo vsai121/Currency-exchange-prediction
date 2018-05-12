@@ -4,7 +4,7 @@ import numpy as np
 import random
 import loader as l
 BATCH_SIZE = 20
-NUM_EPOCHS = 100
+NUM_EPOCHS = 3
 NUM_STEPS = l.NUM_STEPS
 
 X_train , y_train , X_test , y_test = l.process()
@@ -36,13 +36,13 @@ class RNNConfig():
     input_size=1
     num_steps=30
     lstm_size=128
-    num_layers=1
+    num_layers=2
     keep_prob=0.8
     batch_size = 64
     init_learning_rate = 0.001
     learning_rate_decay = 0.99
     init_epoch = 5
-    max_epoch = 50
+    max_epoch = 2
 
 config = RNNConfig()
 
@@ -72,14 +72,14 @@ def create_one_cell():
 def multiple_layers():
 
     if config.num_layers >1:
-        cell = tf.contrib.rnn.MultiRNNCell([_create_one_cell() for _ in range(config.num_layers)],state_is_tuple=True)
+        cell = tf.contrib.rnn.MultiRNNCell([create_one_cell() for _ in range(config.num_layers)],state_is_tuple=True)
 
     else:
         cell = create_one_cell()
 
     return cell
 
-def compute_output(inputs):
+def init_params(inputs):
     cell = multiple_layers()
     val,_ = tf.nn.dynamic_rnn(cell, inputs, dtype=tf.float32)
 
@@ -91,6 +91,11 @@ def compute_output(inputs):
     Why = weight_variable([config.lstm_size , config.input_size])
     by = bias_variable([config.input_size])
 
+    return last , Why , by
+
+def compute_output(inputs):
+
+    last , Why , by = init_params(inputs)
     prediction = tf.matmul(last, Why) + by
 
     return prediction
@@ -103,6 +108,7 @@ def compute_loss(prediction , targets , learning_rate):
     minimize = optimizer.minimize(loss)
 
     return loss , optimizer , minimize
+
 
 
 def train():
@@ -139,7 +145,23 @@ def train():
             print("Epoch" + str(i) +   "completed")
             i+=1
         saver = tf.train.Saver()
-        saver.save(sess, "Sai", global_step=max_epoch_step)
+        saver.save(sess, 'saved_networks/' , global_step = epoch_step)
+
+
+def test(X_test , y_test):
+    saver = tf.train.Saver()
+    with tf.Session() as sess:
+
+        checkpoint = tf.train.get_checkpoint_state("saved_networks")
+
+        if checkpoint and checkpoint.model_checkpoint_path:
+            saver.restore(sess, checkpoint.model_checkpoint_path)
+            print("Loaded :", checkpoint.model_checkpoint_path)
+
+            print(sess.run(predict , feed_dict={inputs:X_test , targets:y_test}))    
 
 if __name__== "__main__":
     train()
+    print(X_test.shape)
+    print(y_test.shape)
+    test(X_test , y_test)
